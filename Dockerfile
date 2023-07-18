@@ -4,7 +4,7 @@ FROM node:19-alpine
 EXPOSE 3000
 
 COPY package.json /app/
-COPY src /app/
+COPY src /app/src/
 # we can just copy the entire thing in
 
 # copy both of these into the image's container directory
@@ -16,4 +16,4 @@ WORKDIR /app/
 RUN npm install 
 # install everything in package.json
 
-CMD ["node", "index.js"]
+CMD ["node", "src/index.js"]
