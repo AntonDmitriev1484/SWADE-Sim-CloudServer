@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 
 function heartbeat() {
-    const timer = 1000*30; //30s
+    const timer = 1000*15; //15s
     const endpoint = "http://e-srv:3000/sync";
 
     setInterval(() => {
@@ -14,17 +14,21 @@ function heartbeat() {
             {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json'
+                    "accept": "application/json",
+                    "content-type": "application/json"
                 }
             },
             (response) => {
-                // Update database using response
+                //Update database
+                console.log(response);
             }
         )
         
         }, 
     timer);
 }
+
+heartbeat();
 
 
 
@@ -35,6 +39,4 @@ app.post('/', (req, res)=> {
     res.send("Recieved POST request!");
 })
 
-app.listen(3000, () => {
-    f.test_put();
-})
+app.listen(3000)
