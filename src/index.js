@@ -1,7 +1,8 @@
 import express from "express"
 import  * as f from "./fetch_methods.js"
-//import zmq from "zeromq"
-// OK THE FUCKING ZMQ SOURCE CODE IS SEGFAULTING IN THE CONTAINER
+import zmq from "zeromq"
+
+// Using version 6 (beta) ZMQ, Node version 14
 
 const THIS_HOST = "http://c-srv";
 const THIS_PORT = 3000;
@@ -11,38 +12,33 @@ const THIS_URL = THIS_HOST + ":" + THIS_PORT + "/";
 console.log("hello world");
 console.log(process.env.CLOUD_IP);
 
-//const SOCK = zmq.socket("sub");
-// ZMQ needs TCP, and you need to give the exact ip address, not hostname
-
-//JUST SET AN ENV VARIABLE IN THE DOCKER COMPOSE
-// getDockerHostIP((err, dockerHostIP) => {
-//     if (err) {
-//       console.error('Error getting Docker host IP:', err);
-//       return;
-//     }
-  
-//     // Get the IP address of the container
-//     const interfaces = os.networkInterfaces();
-//     const containerIP = interfaces['eth0'][0].address; // Assuming the container interface is named 'eth0'
-  
-//     console.log('Container IP address:', containerIP);
-//     console.log('Docker host IP address:', dockerHostIP); // THIS IS SO FUCKING CRINGE DUDE
-//   });
-
-
+const SOCK = new zmq.Subscriber
 const ADDR = process.env.CLOUD_IP;
+// ZMQ needs TCP, and you need to give the exact ip address, not hostname
 console.log(ADDR);
 SOCK.connect("tcp://"+ADDR+":"+THIS_PORT);
-
-
 SOCK.subscribe("test");
-SOCK.on("message", 
-        ([topic, message]) => {
-            // Decomposition is lit, topic should always be "test"
-            console.log('Recieved message from edge');
-            console.log(message);
-        }
-    );
+
+// SOCK.message("message", 
+//         ([topic, message]) => {
+//             // Decomposition is lit, topic should always be "test"
+//             console.log('Recieved message from edge');
+//             console.log(message);
+//         }
+//     );
+
+// SOCK.on("message", function(topic, message) {
+//     console.log(
+//       "received a message related to:",
+//       topic,
+//       "containing message:",
+//       message
+//     );
+//   });
+
+    for await (const [topic, msg] of SOCK) {
+        console.log("received a message related to:", topic, "containing message:", msg)
+    }
 
 
 const app = express();
