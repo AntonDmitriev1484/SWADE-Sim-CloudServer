@@ -1,6 +1,7 @@
 import express from "express"
 import  * as f from "./fetch_methods.js"
 import zmq from "zeromq"
+import dns from "dns"
 
 // Using version 6 (beta) ZMQ, Node version 14
 
@@ -13,11 +14,9 @@ console.log("hello world");
 console.log(process.env.CLOUD_IP);
 
 const SOCK = new zmq.Subscriber
-const ADDR = process.env.CLOUD_IP;
+//const ADDR = process.env.CLOUD_IP;
 // ZMQ needs TCP, and you need to give the exact ip address, not hostname
-console.log(ADDR);
-SOCK.connect("tcp://"+ADDR+":"+THIS_PORT);
-SOCK.subscribe("test");
+
 
 // SOCK.message("message", 
 //         ([topic, message]) => {
@@ -27,14 +26,23 @@ SOCK.subscribe("test");
 //         }
 //     );
 
-// SOCK.on("message", function(topic, message) {
-//     console.log(
-//       "received a message related to:",
-//       topic,
-//       "containing message:",
-//       message
-//     );
-//   });
+const containerName = 'c-srv'; // Replace 'container2' with the actual container name
+let ADDR = 0;
+
+dns.lookup(containerName, (err, address, family) => {
+  if (err) {
+    console.error(`Error resolving IP address for ${containerName}:`, err);
+  } else {
+    ADDR = address
+    console.log(`The IP address of ${containerName} is: ${address}`);
+  }
+});
+
+// This works!
+
+console.log(ADDR);
+SOCK.connect("tcp://"+ADDR+":"+THIS_PORT);
+SOCK.subscribe("test");
 
     for await (const [topic, msg] of SOCK) {
         console.log("received a message related to:", topic, "containing message:", msg)
