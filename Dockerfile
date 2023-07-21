@@ -1,4 +1,4 @@
-FROM node:19-alpine 
+FROM node:16-alpine 
 # Specify Linux OS to package
 
 EXPOSE 3000
