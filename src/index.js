@@ -10,13 +10,7 @@ const THIS_PORT = 3000;
 const THIS_URL = THIS_HOST + ":" + THIS_PORT + "/";
 // const SUB = zmq.Subscriber();
 
-console.log("hello world");
-console.log(process.env.CLOUD_IP);
-
 const SOCK = new zmq.Subscriber
-//const ADDR = process.env.CLOUD_IP;
-// ZMQ needs TCP, and you need to give the exact ip address, not hostname
-
 
 // SOCK.message("message", 
 //         ([topic, message]) => {
@@ -29,6 +23,7 @@ const SOCK = new zmq.Subscriber
 const containerName = 'c-srv'; // Replace 'container2' with the actual container name
 let ADDR = 0;
 
+//NOTE THIS IS ASYNC!
 dns.lookup(containerName, (err, address, family) => {
   if (err) {
     console.error(`Error resolving IP address for ${containerName}:`, err);
@@ -40,14 +35,31 @@ dns.lookup(containerName, (err, address, family) => {
 
 // This works!
 
+// ZMQ needs TCP, and you need to give the exact ip address, not hostname
 console.log(ADDR);
-SOCK.connect("tcp://"+ADDR+":"+THIS_PORT);
+//SOCK.connect("tcp://"+ADDR+":3000");
+await SOCK.bind("tcp://"+ADDR+":3000");
+console.log("port bound");
 SOCK.subscribe("test");
 
-    for await (const [topic, msg] of SOCK) {
-        console.log("received a message related to:", topic, "containing message:", msg)
-    }
+async function recieve_message() {
+    console.log("awaiting messages");
+    try {
+        console.log("trying recieve");
+        while (true) {
+            const [topic, msg] = await SOCK.receive();
+            console.log("Received!");
+            console.log("Received a message related to:", topic, "containing message:", msg);
+        }
+      } catch (err) {
+        console.error("Error while receiving messages:", err);
+      }
+}
 
+recieve_message();
+
+
+// -------------------------------------------------
 
 const app = express();
 app.use(express.json());
@@ -76,9 +88,7 @@ function heartbeat() {
     timer);
 }
 
- heartbeat();
-
-
+ //heartbeat();
 
 app.post('/', (req, res)=> {
     console.log("Received POST request:")
@@ -87,4 +97,4 @@ app.post('/', (req, res)=> {
     res.send("Recieved POST request!");
 })
 
-app.listen(3000)
+//app.listen(3000)
