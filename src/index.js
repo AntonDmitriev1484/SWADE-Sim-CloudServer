@@ -5,89 +5,53 @@ import dns from "dns"
 
 // Using version 6 (beta) ZMQ, Node version 14
 
-const THIS_HOST = "http://c-srv";
+const app = express();
+app.use(express.json());
+
+const THIS_HOST = "c-srv";
 const THIS_PORT = 3000;
-const THIS_URL = THIS_HOST + ":" + THIS_PORT + "/";
-// const SUB = zmq.Subscriber();
+const THIS_URL = `http://${THIS_HOST}:${THIS_PORT}/`;
 
+const SOCK = new zmq.Subscriber
+const PUB_NAME = 'e-srv'; //At the moment, assuming there is only one
 
-// SOCK.message("message", 
-//         ([topic, message]) => {
-//             // Decomposition is lit, topic should always be "test"
-//             console.log('Recieved message from edge');
-//             console.log(message);
-//         }
-//     );
-
-const containerName = 'e-srv'; // Replace 'container2' with the actual container name
-
-let ADDR = 0;
-//NOTE THIS IS ASYNC!
-await dns.lookup(containerName, (err, address, family) => {
+// The parameter lambda function is used asynchronously, had to resolve by nesting.
+// Find publisher ip, pass that into a function that subscribes to messages
+// at that address.
+dns.lookup(PUB_NAME, (err, address, family) => {
   if (err) {
-    console.error(`Error resolving IP address for ${containerName}:`, err);
+    console.error(`Error resolving IP address for ${PUB_NAME}:`, err);
   } else {
-    recieve_messages(address);
-    console.log(`The IP address of ${containerName} is: ${address}`);
-
+    console.log(`DNS lookup successful, subscribing to messages at ${address}:5432`);
+    sub_to_messages(address, "test");
   }
 });
 
-
-const SOCK = new zmq.Subscriber
-
-// Ok, the subscriber needs to connect to the publishers
-// why was this not mentioned int ehFUCKING DOCS
-
-// So publisher binds to a socket on itself
-// subscriber connects to that socket
-// THIS IS THE ONLY WAY IT WORKS
-// this means that c-srv needs to maintain an active list of all 
-// sockets (edge servers) that it needs to connect to receive messages
-async function recieve_messages(ADDR) {
-    const socketAddr = "tcp://"+ADDR+":5432";
+// So publisher binds to a socket on itself, subscriber connects to that socket.
+// This means that c-srv needs to maintain an active list of all 
+// sockets (edge servers) that it needs to connect to receive messages.
+async function sub_to_messages(pub_address, topic) {
+    const socketAddr = "tcp://"+pub_address+":5432";
     try {
-        SOCK.connect(socketAddr); // Mayhaps wrap this in a try catch(err) block
-        //Doing bind causes an error when you actually try to .receive() messages
-        // But I',m pretty sure this: http://wiki.zeromq.org/area:faq
-        // is saying bind should be here
-        console.log("Socket bound to: "+socketAddr);
-    }
-    catch (err) {
-        console.error("Socket binding error: ",err);
-    }
-    SOCK.subscribe("test");
+        SOCK.connect(socketAddr);
+        console.log("Socket connected to: "+socketAddr);
+        SOCK.subscribe(topic);
 
-        console.log("awaiting messages");
         try {
-            console.log("trying recieve");
-
-            // Check if there are any incoming messages
-
-            // for await (const [topic, msg] of SOCK) {
-            //     console.log("received a message related to:", topic, "containing message:", msg)
-            //   }
+            console.log("Awaiting messages");
             while (true) {
-                let p = SOCK.receive();
-                console.log(p)
-                const [topic, msg] = await p;
-                console.log("Received!");
-                console.log("Received a message related to:", topic, "containing message:", msg);
+                const [topic, msg] = await SOCK.receive();
+                console.log(`Received a message. Topic: ${topic} containing message: ${msg}`);
             }
         } catch (err) {
             console.error("Error while receiving messages:", err);
         }
-
+    }
+    catch (err) {
+        console.error("Socket connect error: ",err);
+    }
 
 }
-// ZMQ needs TCP, and you need to give the exact ip address, not hostname
-//SOCK.connect("tcp://"+ADDR+":3000");
-
-
-// -------------------------------------------------
-
-const app = express();
-app.use(express.json());
 
 function heartbeat() {
     const timer = 1000*15; //15s
