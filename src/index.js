@@ -10,7 +10,6 @@ const THIS_PORT = 3000;
 const THIS_URL = THIS_HOST + ":" + THIS_PORT + "/";
 // const SUB = zmq.Subscriber();
 
-const SOCK = new zmq.Subscriber
 
 // SOCK.message("message", 
 //         ([topic, message]) => {
@@ -20,43 +19,69 @@ const SOCK = new zmq.Subscriber
 //         }
 //     );
 
-const containerName = 'c-srv'; // Replace 'container2' with the actual container name
-let ADDR = 0;
+const containerName = 'e-srv'; // Replace 'container2' with the actual container name
 
+let ADDR = 0;
 //NOTE THIS IS ASYNC!
-dns.lookup(containerName, (err, address, family) => {
+await dns.lookup(containerName, (err, address, family) => {
   if (err) {
     console.error(`Error resolving IP address for ${containerName}:`, err);
   } else {
-    ADDR = address
+    recieve_messages(address);
     console.log(`The IP address of ${containerName} is: ${address}`);
+
   }
 });
 
-// This works!
 
-// ZMQ needs TCP, and you need to give the exact ip address, not hostname
-console.log(ADDR);
-//SOCK.connect("tcp://"+ADDR+":3000");
-await SOCK.bind("tcp://"+ADDR+":3000");
-console.log("port bound");
-SOCK.subscribe("test");
+const SOCK = new zmq.Subscriber
 
-async function recieve_message() {
-    console.log("awaiting messages");
+// Ok, the subscriber needs to connect to the publishers
+// why was this not mentioned int ehFUCKING DOCS
+
+// So publisher binds to a socket on itself
+// subscriber connects to that socket
+// THIS IS THE ONLY WAY IT WORKS
+// this means that c-srv needs to maintain an active list of all 
+// sockets (edge servers) that it needs to connect to receive messages
+async function recieve_messages(ADDR) {
+    const socketAddr = "tcp://"+ADDR+":5432";
     try {
-        console.log("trying recieve");
-        while (true) {
-            const [topic, msg] = await SOCK.receive();
-            console.log("Received!");
-            console.log("Received a message related to:", topic, "containing message:", msg);
-        }
-      } catch (err) {
-        console.error("Error while receiving messages:", err);
-      }
-}
+        SOCK.connect(socketAddr); // Mayhaps wrap this in a try catch(err) block
+        //Doing bind causes an error when you actually try to .receive() messages
+        // But I',m pretty sure this: http://wiki.zeromq.org/area:faq
+        // is saying bind should be here
+        console.log("Socket bound to: "+socketAddr);
+    }
+    catch (err) {
+        console.error("Socket binding error: ",err);
+    }
+    SOCK.subscribe("test");
 
-recieve_message();
+        console.log("awaiting messages");
+        try {
+            console.log("trying recieve");
+
+            // Check if there are any incoming messages
+
+            // for await (const [topic, msg] of SOCK) {
+            //     console.log("received a message related to:", topic, "containing message:", msg)
+            //   }
+            while (true) {
+                let p = SOCK.receive();
+                console.log(p)
+                const [topic, msg] = await p;
+                console.log("Received!");
+                console.log("Received a message related to:", topic, "containing message:", msg);
+            }
+        } catch (err) {
+            console.error("Error while receiving messages:", err);
+        }
+
+
+}
+// ZMQ needs TCP, and you need to give the exact ip address, not hostname
+//SOCK.connect("tcp://"+ADDR+":3000");
 
 
 // -------------------------------------------------
