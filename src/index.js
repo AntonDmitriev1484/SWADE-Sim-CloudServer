@@ -23,7 +23,7 @@ dns.lookup(PUB_NAME, (err, address, family) => {
     console.error(`Error resolving IP address for ${PUB_NAME}:`, err);
   } else {
     console.log(`DNS lookup successful, subscribing to messages at ${address}:5432`);
-    sub_to_messages(address, "test");
+    sub_to_messages(address, "Test");
   }
 });
 
