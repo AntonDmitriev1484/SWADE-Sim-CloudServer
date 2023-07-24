@@ -31,7 +31,7 @@ dns.lookup(PUB_NAME, (err, address, family) => {
 // This means that c-srv needs to maintain an active list of all 
 // sockets (edge servers) that it needs to connect to receive messages.
 async function sub_to_messages(pub_address, topic) {
-    const socketAddr = "tcp://"+pub_address+":5432";
+    const socketAddr = "tcp://"+pub_address+":3001";
     try {
         SOCK.connect(socketAddr);
         console.log("Socket connected to: "+socketAddr);
