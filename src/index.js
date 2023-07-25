@@ -18,7 +18,7 @@ const EXPRESS_PORT = 3000;
 const ZMQ_PORT = 3001;
 
 const SOCK = new zmq.Subscriber
-const PUB_NAME = 'e-srv'; //At the moment, assuming there is only one
+const PUB_NAME = 'e-srv1'; //Use the e-srv's alias on SWADE-net
 
 const DB_CLIENT = new pg.Client({
     host: 'cpg',
@@ -41,14 +41,12 @@ DB_CLIENT.connect().then( x => {
 }
 );
 
-// The parameter lambda function is used asynchronously, had to resolve by nesting.
-// Find publisher ip, pass that into a function that subscribes to messages
-// at that address.
+// It must've found e-srv in swade-net and connected
 dns.lookup(PUB_NAME, (err, address, family) => {
   if (err) {
     console.error(`Error resolving IP address for ${PUB_NAME}:`, err);
   } else {
-    console.log(`DNS lookup successful, subscribing to messages at ${address}:5432`);
+    console.log(`DNS lookup successful, subscribing to messages at ${address}:${ZMQ_PORT}`);
     sub_to_messages(address, "Test");
   }
 });
@@ -62,6 +60,9 @@ async function sub_to_messages(pub_address, topic) {
         SOCK.connect(socketAddr);
         console.log("Socket connected to: "+socketAddr);
         SOCK.subscribe(topic);
+
+        // I think this is connecting to the wrong address (DNS Lookup)
+        // So lets implement that registration system
 
         try {
             console.log("Awaiting messages");
@@ -118,11 +119,10 @@ function heartbeat() {
 
  //heartbeat();
 
-app.post('/', (req, res)=> {
-    console.log("Received POST request:")
-    console.log(req.body);
-    console.log("----------------------")
-    res.send("Recieved POST request!");
+app.post('/register', (req, res)=> {
+    console.log('Registered: ')
 })
 
-//app.listen(3000)
+app.listen(3000)
+
+
