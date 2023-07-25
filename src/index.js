@@ -20,6 +20,8 @@ const ZMQ_PORT = 3001;
 const SOCK = new zmq.Subscriber
 const PUB_NAME = 'e-srv1'; //Use the e-srv's alias on SWADE-net
 
+let PUB_IPS = [];
+
 const DB_CLIENT = new pg.Client({
     host: 'cpg',
     port: PG_PORT,
@@ -119,8 +121,11 @@ function heartbeat() {
 
  //heartbeat();
 
-app.post('/register', (req, res)=> {
-    console.log('Registered: ')
+app.get('/register', (req, res)=> {
+    const IP = req.ip.substring(7, req.ip.length); //Substring to mask out the IPv4 component
+    console.log('Registering '+IP);
+    PUB_IPS.push(IP);
+    res.send({message: "Cloud has registered this server ip!"})
 })
 
 app.listen(3000)
