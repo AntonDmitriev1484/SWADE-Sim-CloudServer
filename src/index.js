@@ -17,8 +17,8 @@ const PG_PORT = 5432;
 const EXPRESS_PORT = 3000;
 const ZMQ_PORT = 3001;
 
-const SOCK = new zmq.Subscriber
-const PUB_NAME = 'e-srv1'; //Use the e-srv's alias on SWADE-net
+// NOTE: THIS WAS e-srv1 before! Change back if necessary
+//const PUB_NAME = `e-srv${process.env.EDGE_ID}`; //Use the e-srv's alias on SWADE-net
 
 let PUB_IPS = [];
 
@@ -44,19 +44,20 @@ DB_CLIENT.connect().then( x => {
 );
 
 // It must've found e-srv in swade-net and connected
-dns.lookup(PUB_NAME, (err, address, family) => {
-  if (err) {
-    console.error(`Error resolving IP address for ${PUB_NAME}:`, err);
-  } else {
-    console.log(`DNS lookup successful, subscribing to messages at ${address}:${ZMQ_PORT}`);
-    sub_to_messages(address, "Test");
-  }
-});
+// dns.lookup(PUB_NAME, (err, address, family) => {
+//   if (err) {
+//     console.error(`Error resolving IP address for ${PUB_NAME}:`, err);
+//   } else {
+//     console.log(`DNS lookup successful, subscribing to messages at ${address}:${ZMQ_PORT}`);
+//     //sub_to_messages(address, "Test");
+//   }
+// });
 
 // So publisher binds to a socket on itself, subscriber connects to that socket.
 // This means that c-srv needs to maintain an active list of all 
 // sockets (edge servers) that it needs to connect to receive messages.
 async function sub_to_messages(pub_address, topic) {
+    const SOCK = new zmq.Subscriber; // Need 1 subscriber socket per connection
     const socketAddr = "tcp://"+pub_address+":3001";
     try {
         SOCK.connect(socketAddr);
@@ -125,9 +126,9 @@ app.get('/register', (req, res)=> {
     const IP = req.ip.substring(7, req.ip.length); //Substring to mask out the IPv4 component
     console.log('Registering '+IP);
     PUB_IPS.push(IP);
-    res.send({message: "Cloud has registered this server ip!"})
+    sub_to_messages(IP, "Test");
+    res.send({message: "Cloud has registered this server ip!", swadenetIP: IP})
 })
 
 app.listen(3000)
-
 
