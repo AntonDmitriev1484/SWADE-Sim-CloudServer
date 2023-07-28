@@ -17,7 +17,7 @@ const ZMQ_PORT = 3001;
 let PUB_IPS = [];
 
 const DB_CLIENT = new pg.Client({
-    host: 'cpg',
+    host: DB_HOST,
     port: PG_PORT,
     database: 'postgres',
     user: 'postgres',
@@ -29,7 +29,6 @@ async function connect_postgress() {
     await new Promise(res => setTimeout(res, 5000)); 
     // Give pg enough time to start
     // Write a connect with retry loop around DB_CLIENT.connect()
-  
     return new Promise((resolve, reject)=> {
       DB_CLIENT.connect().then( x => {
         resolve(`Connected to ${DB_HOST}.`);
@@ -81,8 +80,9 @@ async function sub_to_messages(pub_address, topic, action) {
 
 init_connections()
 .then( value => {
+    console.log('Connections initialized!');
 
-    app.get('/register', (req, res)=> {
+    app.post('/register', (req, res)=> {
         // TODO: req is also where edge servers will pass in their topics
         const IP = req.ip.substring(7, req.ip.length); //Substring to mask out the IPv4 component
         console.log('Registering '+IP);
@@ -118,9 +118,9 @@ init_connections()
                     body: 
                         JSON.stringify(msg)
                 },
-                (res) => {
-                    console.log(res.message);
-                    res(res);
+                (fs_res) => {
+                    console.log(fs_res.message);
+                    res.send(fs_res);
                 }
                 )
 
@@ -129,7 +129,7 @@ init_connections()
         }
 
         // Bind the generated callbacks to every subscription
-        for (topic in req.body.topics) {
+        req.body.topics.forEach( topic => {
             // If this edge server is registering to upload files.
             // We need to create a bucket, before we create a subscriber binding.
             if (topic.name === 'file_upload') {
@@ -142,21 +142,21 @@ init_connections()
                         "content-type": "application/json"
                     },
                     body: 
-                        JSON.stringify({"bucket": req.body.bucket})
+                        JSON.stringify({"bucket": topic.bucket})
                 },
-                (res) => {
-                    console.log(res.message);
+                (fs_res) => {
+                    console.log(fs_res.message);
                     sub_to_messages(IP, topic.name, TOPIC_TO_CALLBACK[topic.name]);
-                    res(res);
+                    res.send(fs_res.message);
                 }
                 )
             }
             else {
                 sub_to_messages(IP, topic.name, TOPIC_TO_CALLBACK[topic.name]);
             }
-        }
+        });
 
-        res.send({message: "Cloud has registered this server ip!"})
+        // res.send({message: "Cloud has registered this server ip!"})
     })
 
 })
