@@ -30,7 +30,7 @@ const DB_CLIENT = new pg.Client({
     password: 'pass',
   })
 
-  await new Promise(res => setTimeout(res, 5000)); 
+await new Promise(res => setTimeout(res, 5000)); 
 
 
 DB_CLIENT.connect().then( x => {
@@ -43,21 +43,13 @@ DB_CLIENT.connect().then( x => {
 }
 );
 
-// It must've found e-srv in swade-net and connected
-// dns.lookup(PUB_NAME, (err, address, family) => {
-//   if (err) {
-//     console.error(`Error resolving IP address for ${PUB_NAME}:`, err);
-//   } else {
-//     console.log(`DNS lookup successful, subscribing to messages at ${address}:${ZMQ_PORT}`);
-//     //sub_to_messages(address, "Test");
-//   }
-// });
-
 // So publisher binds to a socket on itself, subscriber connects to that socket.
 // This means that c-srv needs to maintain an active list of all 
 // sockets (edge servers) that it needs to connect to receive messages.
 async function sub_to_messages(pub_address, topic) {
-    const SOCK = new zmq.Subscriber; // Need 1 subscriber socket per connection
+    const SOCK = new zmq.Subscriber; 
+    // Need 1 subscriber socket per connection
+    // But is this really how this is supposed to work? Am I missing the point?
     const socketAddr = "tcp://"+pub_address+":3001";
     try {
         SOCK.connect(socketAddr);
@@ -95,32 +87,6 @@ async function sub_to_messages(pub_address, topic) {
     }
 
 }
-
-function heartbeat() {
-    const timer = 1000*15; //15s
-    const endpoint = "http://e-srv:3000/sync";
-
-    setInterval(() => {
-        f.HOFetch(
-            endpoint, 
-            {
-                method: 'GET',
-                headers: {
-                    "accept": "application/json",
-                    "content-type": "application/json"
-                }
-            },
-            (response) => {
-                //Update database
-                console.log(response);
-            }
-        )
-        
-        }, 
-    timer);
-}
-
- //heartbeat();
 
 app.get('/register', (req, res)=> {
     const IP = req.ip.substring(7, req.ip.length); //Substring to mask out the IPv4 component
