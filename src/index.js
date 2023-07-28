@@ -1,4 +1,5 @@
 import express from "express"
+import fs from "fs"
 import  * as f from "./fetch_methods.js"
 import zmq from "zeromq"
 import dns from "dns"
@@ -88,6 +89,46 @@ init_connections()
         console.log('Registering '+IP);
         PUB_IPS.push(IP);
 
+        function build_file_upload_function() {
+            let writestream = null;
+            let write_to = 'data/'+req.body.bucket+'/'+req.body.path;
+            // Docker directory to write the file to, before it gets sent
+
+            return (msg) => {
+                // Its actually working now, just need to parse the msg object correctly
+                // HOLY FUCK MY BRAIN IS FRIED
+                console.log(JSON.parse(msg));
+                console.log(JSON.stringify(msg.toString()));
+                console.log(JSON.stringify(msg));
+
+                if (writestream === null) {
+                    writestream = fs.createWriteStream(write_to+'/');
+                }
+                if (msg.chunk === 'end') {
+                    writestream = null;
+                    f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/create-file`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            "accept": "application/json",
+                            "content-type": "application/json"
+                        },
+                        body: 
+                            JSON.stringify(msg)
+                    },
+                    (fs_res) => {
+                        console.log(fs_res.message);
+                        res.send(fs_res);
+                    }
+                    )
+                }
+                else {
+                    writestream.write(msg.chunk);
+                }
+            }
+        }
+
+
         // Each unique registration might result in different functions
         const TOPIC_TO_CALLBACK = {
             live_data: (msg) => {
@@ -105,26 +146,7 @@ init_connections()
                     }
                 )
             },
-            file_upload: (msg) => {
-                // On a 'file_upload' message. Forward the message to the file system
-                // TEST 2: File upload endpoint successful
-                f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/create-file`,
-                {
-                    method: 'POST',
-                    headers: {
-                        "accept": "application/json",
-                        "content-type": "application/json"
-                    },
-                    body: 
-                        JSON.stringify(msg)
-                },
-                (fs_res) => {
-                    console.log(fs_res.message);
-                    res.send(fs_res);
-                }
-                )
-
-            }
+            file_upload: build_file_upload_function()
 
         }
 
