@@ -64,9 +64,9 @@ async function sub_to_messages(pub_address, topic, action) {
                 const [topic, msg] = await SOCK.receive();
 
                 console.log(`Received a message: `);
-                console.log(msg.toString());
+                console.log(JSON.parse(msg));
 
-                action(msg);
+                action(JSON.parse(msg));
 
             }
         } catch (err) {
@@ -91,39 +91,44 @@ init_connections()
 
         function build_file_upload_function() {
             let writestream = null;
-            let write_to = 'data/'+req.body.bucket+'/'+req.body.path;
-            // Docker directory to write the file to, before it gets sent
 
             return (msg) => {
-                // Its actually working now, just need to parse the msg object correctly
-                // HOLY FUCK MY BRAIN IS FRIED
-                console.log(JSON.parse(msg));
-                console.log(JSON.stringify(msg.toString()));
-                console.log(JSON.stringify(msg));
 
                 if (writestream === null) {
-                    writestream = fs.createWriteStream(write_to+'/');
+                    let write_to = 'data/'+msg.bucket+'/'+msg.path;
+                    console.log('Opening writestream for '+write_to);
+
+                    // Apparently it won't automatically create the directories for you
+                    write_to = 'data/MAC000002.csv'; 
+                    // Hard coding just the name fed up with javascripts shit
+                    writestream = fs.createWriteStream(write_to);
                 }
-                if (msg.chunk === 'end') {
+                if (msg.chunk === null) {
+                    console.log('Closing writestream');
+                    // TODO: Check that this is being printed
+
                     writestream = null;
-                    f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/create-file`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            "accept": "application/json",
-                            "content-type": "application/json"
-                        },
-                        body: 
-                            JSON.stringify(msg)
-                    },
-                    (fs_res) => {
-                        console.log(fs_res.message);
-                        res.send(fs_res);
-                    }
-                    )
+                    // f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/create-file`,
+                    // {
+                    //     method: 'POST',
+                    //     headers: {
+                    //         "accept": "application/json",
+                    //         "content-type": "application/json"
+                    //     },
+                    //     body: 
+                    //         JSON.stringify(msg)
+                    // },
+                    // (fs_res) => {
+                    //     console.log(fs_res.message);
+                    //     res.send(fs_res);
+                    // }
+                    // )
                 }
                 else {
-                    writestream.write(msg.chunk);
+
+                    // HERE: Format msg.chunk back into csv from json
+                    let chunk_as_csv_str = Object.values(msg.chunk).join(',') + "\n";
+                    writestream.write(chunk_as_csv_str);
                 }
             }
         }
