@@ -64,7 +64,7 @@ async function sub_to_messages(pub_address, topic, action) {
                 const [topic, msg] = await SOCK.receive();
 
                 console.log(`Received a message: `);
-                console.log(JSON.parse(msg));
+                //console.log(JSON.parse(msg));
 
                 action(JSON.parse(msg));
 
@@ -99,33 +99,41 @@ init_connections()
                     console.log('Opening writestream for '+write_to);
 
                     // Apparently it won't automatically create the directories for you
-                    write_to = 'data/MAC000002.csv'; 
+                    write_to = 'data/water.csv'; 
                     // Hard coding just the name fed up with javascripts shit
                     writestream = fs.createWriteStream(write_to);
                 }
+
                 if (msg.chunk === null) {
                     console.log('Closing writestream');
                     // TODO: Check that this is being printed
 
+                    const file_stream = fs.createReadStream('data/water.csv');
+                    // const formData = new FormData();
+                    // formData.append('file', file);
+
                     writestream = null;
-                    // f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/create-file`,
-                    // {
-                    //     method: 'POST',
-                    //     headers: {
-                    //         "accept": "application/json",
-                    //         "content-type": "application/json"
-                    //     },
-                    //     body: 
-                    //         JSON.stringify(msg)
-                    // },
-                    // (fs_res) => {
-                    //     console.log(fs_res.message);
-                    //     res.send(fs_res);
-                    // }
-                    // )
+                    f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/create-file`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            "accept": "application/json",
+                            "content-type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            bucket: req.bucket,
+                            path: 'data/water.csv',
+                            file: file_stream
+                        })
+                    },
+                    (fs_res) => {
+                        console.log(fs_res.message);
+                        res.send(fs_res);
+                    }
+                    )
                 }
                 else {
-
+                    // It's receiving the headers, just not writing them to the file?
                     // HERE: Format msg.chunk back into csv from json
                     let chunk_as_csv_str = Object.values(msg.chunk).join(',') + "\n";
                     writestream.write(chunk_as_csv_str);
