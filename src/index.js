@@ -4,6 +4,7 @@ import  * as f from "./fetch_methods.js"
 import zmq from "zeromq"
 import dns from "dns"
 import pg from "pg"
+import FormData from "form-data"
 
 // Using version 6 (beta) ZMQ, Node version 14
 
@@ -64,7 +65,7 @@ async function sub_to_messages(pub_address, topic, action) {
                 const [topic, msg] = await SOCK.receive();
 
                 console.log(`Received a message: `);
-                //console.log(JSON.parse(msg));
+                console.log(JSON.parse(msg));
 
                 action(JSON.parse(msg));
 
@@ -108,29 +109,42 @@ init_connections()
                     console.log('Closing writestream');
                     // TODO: Check that this is being printed
 
-                    const file_stream = fs.createReadStream('data/water.csv');
-                    // const formData = new FormData();
-                    // formData.append('file', file);
+                    writestream.end();
 
                     writestream = null;
-                    f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/create-file`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            "accept": "application/json",
-                            "content-type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            bucket: req.bucket,
-                            path: 'data/water.csv',
-                            file: file_stream
-                        })
-                    },
-                    (fs_res) => {
-                        console.log(fs_res.message);
-                        res.send(fs_res);
-                    }
-                    )
+                    const file = fs.createReadStream('data/water.csv');
+
+                    const formData = new FormData();
+                    formData.append('file', file); //Automatically deals with size
+
+                    console.log(formData);
+
+                    // fs.stat('data/water.csv', (err, stats) => {
+                    //     if (err) {
+                    //         console.log(err);
+                    //     }
+                    //     else {
+                    //         writestream = null;
+                    //         const file = fs.createReadStream('data/water.csv'); // Why is it not reading anything from path into stream
+                    //         // I have absolutely zero fucking clue why this file
+                    //         // isn't sending 
+                            f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/create-file`,
+                            {
+                                method: 'POST',
+                                headers: {
+                                    // "Content-Type": "multipart/form-data"
+                                },
+                                body: formData
+                            },
+                            (fs_res) => {
+                                console.log(fs_res.message);
+                                res.send(fs_res);
+                            }
+                            )
+                    //     }
+
+                    // })
+  
                 }
                 else {
                     // It's receiving the headers, just not writing them to the file?
