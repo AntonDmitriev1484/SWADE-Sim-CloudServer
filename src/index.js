@@ -68,8 +68,8 @@ async function sub_to_messages(pub_address, topic, action) {
             while (true) {
                 const [topic, msg] = await SOCK.receive();
 
-                console.log(`Received a message: `);
-                console.log(JSON.parse(msg));
+                //console.log(`Received a message: `);
+                //console.log(JSON.parse(msg));
 
                 action(JSON.parse(msg));
 
