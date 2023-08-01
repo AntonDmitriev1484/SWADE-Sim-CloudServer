@@ -1,10 +1,14 @@
 import express from "express"
 import fs from "fs"
 import  * as f from "./fetch_methods.js"
+import handlers from "./msg_handlers.js"
 import zmq from "zeromq"
 import dns from "dns"
 import pg from "pg"
 import FormData from "form-data"
+
+const {build_file_upload_handler, build_live_data_handler} = handlers;
+
 
 // Using version 6 (beta) ZMQ, Node version 14
 
@@ -85,127 +89,49 @@ init_connections()
     console.log('Connections initialized!');
 
     app.post('/register', (req, res)=> {
-        // TODO: req is also where edge servers will pass in their topics
+
         const IP = req.ip.substring(7, req.ip.length); //Substring to mask out the IPv4 component
         console.log('Registering '+IP);
         PUB_IPS.push(IP);
 
-        function build_file_upload_function() {
-            let writestream = null;
-
-            return (msg) => {
-
-                if (writestream === null) {
-                    let write_to = 'data/'+msg.bucket+'/'+msg.path;
-                    console.log('Opening writestream for '+write_to);
-
-                    // Apparently it won't automatically create the directories for you
-                    write_to = 'data/water.csv'; 
-                    // Hard coding just the name fed up with javascripts shit
-                    writestream = fs.createWriteStream(write_to);
-                }
-
-                if (msg.chunk === null) {
-                    console.log('Closing writestream');
-                    // TODO: Check that this is being printed
-
-                    writestream.end();
-
-                    writestream = null;
-                    const file = fs.createReadStream('data/water.csv');
-
-                    const formData = new FormData();
-                    formData.append('file', file); //Automatically deals with size
-
-                    console.log(formData);
-
-                    // fs.stat('data/water.csv', (err, stats) => {
-                    //     if (err) {
-                    //         console.log(err);
-                    //     }
-                    //     else {
-                    //         writestream = null;
-                    //         const file = fs.createReadStream('data/water.csv'); // Why is it not reading anything from path into stream
-                    //         // I have absolutely zero fucking clue why this file
-                    //         // isn't sending 
-                            f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/create-file`,
-                            {
-                                method: 'POST',
-                                headers: {
-                                    // "Content-Type": "multipart/form-data"
-                                },
-                                body: formData
-                            },
-                            (fs_res) => {
-                                console.log(fs_res.message);
-                                res.send(fs_res);
-                            }
-                            )
-                    //     }
-
-                    // })
-  
-                }
-                else {
-                    // It's receiving the headers, just not writing them to the file?
-                    // HERE: Format msg.chunk back into csv from json
-                    let chunk_as_csv_str = Object.values(msg.chunk).join(',') + "\n";
-                    writestream.write(chunk_as_csv_str);
-                }
-            }
-        }
-
-
-        // Each unique registration might result in different functions
+        // When an edge server registers, create handler functions
+        // for dealing with that edge server's messages on some topic.
         const TOPIC_TO_CALLBACK = {
-            live_data: (msg) => {
-                // On a 'live_data' message. Forward the data to the cloud database
-                // by running a query.
-                const query_text = msg.query.toString();
-                DB_CLIENT.query(query_text).then(
-                    x => {
-                        console.log('Query applied to cloud postgres successfully!');
-                    }
-                )
-                .catch(
-                    err => {
-                        console.log('Query failed on cloud postgres: '+err);
-                    }
-                )
-            },
-            file_upload: build_file_upload_function()
-
+            live_data: build_live_data_handler(DB_CLIENT, req, res),
+            file_upload: build_file_upload_handler(`http://${FS_HOST}:${EXPRESS_PORT}/upload-file`, req, res),
         }
 
         // Bind the generated callbacks to every subscription
-        req.body.topics.forEach( topic => {
-            // If this edge server is registering to upload files.
-            // We need to create a bucket, before we create a subscriber binding.
-            if (topic.name === 'file_upload') {
-                // TEST 1: Bucket creation endpoint successful
-                f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/new-bucket`,
-                {
-                    method: 'POST',
-                    headers: {
-                        "accept": "application/json",
-                        "content-type": "application/json"
+        req.body.topics.forEach( 
+            topic => {
+                // If this edge server is registering to upload files.
+                // We need to create a bucket before we create a subscriber binding.
+                if (topic.name === 'file_upload') {
+                    f.HOFetch(`http://${FS_HOST}:${EXPRESS_PORT}/new-bucket`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            "accept": "application/json",
+                            "content-type": "application/json"
+                        },
+                        body: 
+                            JSON.stringify({"bucket": topic.bucket})
                     },
-                    body: 
-                        JSON.stringify({"bucket": topic.bucket})
-                },
-                (fs_res) => {
-                    console.log(fs_res.message);
-                    sub_to_messages(IP, topic.name, TOPIC_TO_CALLBACK[topic.name]);
-                    res.send(fs_res.message);
+                    (fs_res) => {
+                        console.log(fs_res.message);
+                        sub_to_messages(IP, topic.name, TOPIC_TO_CALLBACK[topic.name]);
+                        res.send(fs_res.message);
+                    }
+                    )
                 }
-                )
+                else {
+                    sub_to_messages(IP, topic.name, TOPIC_TO_CALLBACK[topic.name]);
+                }
             }
-            else {
-                sub_to_messages(IP, topic.name, TOPIC_TO_CALLBACK[topic.name]);
-            }
-        });
+        );
 
-        // res.send({message: "Cloud has registered this server ip!"})
+        // Need to build up a res object and then send it here
+        // Sending it within the lambda keeps it from being written down here
     })
 
 })
