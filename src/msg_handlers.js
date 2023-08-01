@@ -62,7 +62,7 @@ function build_file_upload_handler(file_upload_endpoint, req, res) {
                     return acc;
                 }
                 return acc + Object.values(row).join(',') + "\n";
-            })
+            }, "");
 
             console.log (`Wrote chunk #${COUNT}.`);
             writestream.write(chunk_as_csv_str);
