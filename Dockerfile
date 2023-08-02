@@ -5,7 +5,7 @@ EXPOSE 3000
 
 COPY package.json /app/
 COPY src /app/src/
-COPY data /app/data/
+COPY tempdata /app/tempdata/
 # we can just copy the entire thing in
 
 # copy both of these into the image's container directory

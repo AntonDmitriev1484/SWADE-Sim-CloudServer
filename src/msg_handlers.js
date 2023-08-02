@@ -5,56 +5,36 @@ import FormData from "form-data"
 
 function build_file_upload_handler(file_upload_endpoint, req, res) {
     let writestream = null;
-    let path = null;
+    let dir_path = null; // Path right up to the file
+    let full_path = null; // Path including the filename
     let END = false;
     let COUNT = 0;
 
-    function end_file_transfer() {
-        console.log('Closing writestream');
-
-        writestream.end();
-        writestream = null;
-        const file = fs.createReadStream(path);
-        path = null;
-
-        console.log(' Cloud read: '+COUNT+' chunks. ');
-        COUNT = 0;
-
-        const formData = new FormData();
-        formData.append('file', file); //Automatically deals with size
-
-        f.HOFetch(file_upload_endpoint,
-            {
-                method: 'POST',
-                headers: {
-                    // "Content-Type": "multipart/form-data"
-                },
-                body: formData
-            },
-            (fs_res) => {
-                console.log(fs_res.message);
-            }
-        );
-    }
-
     return (msg) => {
-
-        // Seems it occasionally splices in an [object Object]
-        // hence the discrepancy of about ~ 20 lines or so
-
+        
         if (writestream === null) {
-            //path = 'data/'+msg.bucket+'/'+msg.path;
+            // Want this to be synchronous for now
+            // Really don't want to convert this to functional
+            dir_path = `tempdata/${msg.bucket}/${msg.path}`;
+            full_path = dir_path + '/' + msg.filename;
+
+            // Create a directory within tempdata to hold this temporary file
+            fs.mkdirSync(dir_path, { recursive: true }, (err) => {
+                if (err) {
+                  console.error('Error creating directory:', err);
+                } else {
+                  console.log('Directory created successfully!');
+                }
+            });
             END = false;
-            path = 'data/MAC000002.csv';
-            console.log('Opening writestream for '+path);
-            // Note: You will need to manually create the directories
-            writestream = fs.createWriteStream(path);
+            console.log('Opening writestream for '+full_path);
+            writestream = fs.createWriteStream(full_path);
             // Writing headers
             writestream.write(Object.values(msg.chunk).join(',') + "\n");
         }
         else {
-            // HERE: Format msg.chunk back into csv from json
             COUNT ++;
+            // Convert chunk from an array of jsons to a string in csv format
             let chunk_as_csv_str = msg.chunk.reduce( (acc, row) => {
                 if (row === null) { // Last chunk will have a null terminator
                     console.log('Detected null terminator');
@@ -70,6 +50,41 @@ function build_file_upload_handler(file_upload_endpoint, req, res) {
             if (END) {
                 end_file_transfer();
             }
+        }
+
+
+        function end_file_transfer() {
+            console.log('Closing writestream');
+    
+            writestream.end();
+            writestream = null;
+            const file = fs.createReadStream(full_path);
+            dir_path = null;
+            full_path = null;
+    
+            console.log(' Cloud read: '+COUNT+' chunks. ');
+            COUNT = 0;
+    
+            const formData = new FormData();
+            formData.append('bucket', msg.bucket);
+            formData.append('path', msg.path);
+            formData.append('filename', msg.filename);
+            formData.append('file', file); //Automatically deals with size
+    
+            f.HOFetch(file_upload_endpoint,
+                {
+                    method: 'POST',
+                    headers: {
+                        // "Content-Type": "multipart/form-data"
+                    },
+                    body: formData
+                },
+                (fs_res) => {
+                    console.log(fs_res.message);
+                    // Delete temporary directory that we wrote this file to
+                    fs.rmSync(`tempdata/${msg.bucket}`, { recursive: true, force: true });
+                }
+            );
         }
     }
 }
