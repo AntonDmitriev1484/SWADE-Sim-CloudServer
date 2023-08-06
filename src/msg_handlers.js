@@ -52,13 +52,32 @@ function build_file_upload_handler(file_upload_endpoint, req, res) {
             }
         }
 
+        function write_csv_cloud_metadata(metadata_filename) {
+
+            let metadata = "";
+            
+            // !!! Re-write these permissions !!!
+            metadata = `Groups:\n${process.env.LOCAL_GROUP}: RW\nUsers:\n${process.env.USERNAME}: RW\n`;
+
+            fs.writeFileSync(`${dir_path}/${metadata_filename}`, metadata, (err) => {
+              if (err) {
+                console.error('Error writing file:', err);
+              } else {
+                console.log('File written successfully.');
+              }
+            })
+          }
 
         function end_file_transfer() {
             console.log('Closing writestream');
-    
+            const metadata_filename = msg.filename.replace(/\./g, '_')+'_meta.txt';
+            write_csv_cloud_metadata(metadata_filename); // Broker writes a metadata ACL for the cloud FS
+
             writestream.end();
             writestream = null;
             const file = fs.createReadStream(full_path);
+            const metadata_file = fs.createReadStream(`${dir_path}/${metadata_filename}`)
+
             dir_path = null;
             full_path = null;
     
@@ -69,7 +88,8 @@ function build_file_upload_handler(file_upload_endpoint, req, res) {
             formData.append('bucket', msg.bucket);
             formData.append('path', msg.path);
             formData.append('filename', msg.filename);
-            formData.append('file', file); //Automatically deals with size
+            formData.append('file', file); // Upload the file
+            formData.append('metadata_file', metadata_file); // Upload the corresponding ACL
     
             f.HOFetch(file_upload_endpoint,
                 {
@@ -83,6 +103,7 @@ function build_file_upload_handler(file_upload_endpoint, req, res) {
                     console.log(fs_res.message);
                     // Delete temporary directory that we wrote this file to
                     fs.rmSync(`tempdata/${msg.bucket}`, { recursive: true, force: true });
+                    // I don't think this is actually deleting the file
                 }
             );
         }
