@@ -1,6 +1,9 @@
 import fs from "fs"
 import  * as f from "./fetch_methods.js"
 import FormData from "form-data"
+import policy_engine from "./policy_engine.js"
+
+const {authorize_action} = policy_engine;
 
 
 function build_file_upload_handler(file_upload_endpoint, req) {
@@ -83,29 +86,31 @@ function build_file_upload_handler(file_upload_endpoint, req) {
     
             console.log(' Cloud read: '+COUNT+' chunks. ');
             COUNT = 0;
-    
-            const formData = new FormData();
-            formData.append('bucket', msg.bucket);
-            formData.append('path', msg.path);
-            formData.append('filename', msg.filename);
-            formData.append('file', file); // Upload the file
-            formData.append('metadata_file', metadata_file); // Upload the corresponding ACL
-    
-            f.HOFetch(file_upload_endpoint,
-                {
-                    method: 'POST',
-                    headers: {
-                        // "Content-Type": "multipart/form-data"
+
+            if (authorize_action(msg.user.username, "WC")) {
+                const formData = new FormData();
+                formData.append('bucket', msg.bucket);
+                formData.append('path', msg.path);
+                formData.append('filename', msg.filename);
+                formData.append('file', file); // Upload the file
+                formData.append('metadata_file', metadata_file); // Upload the corresponding ACL
+        
+                f.HOFetch(file_upload_endpoint,
+                    {
+                        method: 'POST',
+                        headers: {
+                            // "Content-Type": "multipart/form-data"
+                        },
+                        body: formData
                     },
-                    body: formData
-                },
-                (fs_res) => {
-                    console.log(fs_res.message);
-                    // Delete temporary directory that we wrote this file to
-                    fs.rmSync(`tempdata/${msg.bucket}`, { recursive: true, force: true });
-                    // I don't think this is actually deleting the file
-                }
-            );
+                    (fs_res) => {
+                        console.log(fs_res.message);
+                        // Delete temporary directory that we wrote this file to
+                        fs.rmSync(`tempdata/${msg.bucket}`, { recursive: true, force: true });
+                        // I don't think this is actually deleting the file
+                    }
+                );
+            }
         }
     }
 }
