@@ -3,7 +3,7 @@ import  * as f from "./fetch_methods.js"
 import FormData from "form-data"
 
 
-function build_file_upload_handler(file_upload_endpoint, req, res) {
+function build_file_upload_handler(file_upload_endpoint, req) {
     let writestream = null;
     let dir_path = null; // Path right up to the file
     let full_path = null; // Path including the filename
@@ -111,7 +111,7 @@ function build_file_upload_handler(file_upload_endpoint, req, res) {
 }
 
 
-function build_live_data_handler(db_client, req, res) {
+function build_live_data_handler(db_client, req) {
     return (msg) => {
         // On a 'live_data' message. Forward the data to the cloud database
         // by running a query.
