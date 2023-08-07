@@ -1,4 +1,6 @@
 
+const GROUPS = ["A","B"];
+
 const USER_TO_GROUPS = {
     "u1":["A"],
     "u2":["A", "B"]
@@ -15,6 +17,34 @@ const GROUP_TO_PERMISSIONS = {
 const GROUP_TO_MACHINE = {
     "A":  "172.31.0.2",
     "B":  "172.31.0.4"
+}
+
+function is_user_in_group(user, group) {
+    const groups = USER_TO_GROUPS[user]
+    return groups.find(
+        (g)=>{ return group === g}
+    )
+}
+
+function get_csv_cloud_metadata(user) {
+    let metadata = "Groups:\n";
+
+            let gp = GROUPS.reduce( (str, g) => {
+                if (is_user_in_group(user, g)) {
+                     return str+= `${g}: RW\n`
+                }
+                else {
+                    return str += `${g}: R\n`
+                }
+            }, "");
+
+            console.log(gp);
+            metadata+=gp;
+
+            metadata += "Users:\n"
+            metadata += `${user}: RW\n`
+
+    return metadata;
 }
 
 function authorize_action(user, action, group_owns_device=null) {
@@ -58,9 +88,7 @@ function authorize_action(user, action, group_owns_device=null) {
             else {
                 console.log(`User: ${user} has been approved to write to the cloud!`)
             }
-
             return approved;
-
         }
     }
     else {
@@ -71,4 +99,4 @@ function authorize_action(user, action, group_owns_device=null) {
 
 }
 
-export default {authorize_action}
+export default {authorize_action, get_csv_cloud_metadata}

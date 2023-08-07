@@ -3,8 +3,8 @@ import  * as f from "./fetch_methods.js"
 import FormData from "form-data"
 import policy_engine from "./policy_engine.js"
 
-const {authorize_action} = policy_engine;
-
+const {authorize_action, get_csv_cloud_metadata} = policy_engine;
+// I think its treating GROUPS and USER_TO_GROUPS as functions, god knows why
 
 function build_file_upload_handler(file_upload_endpoint, req) {
     let writestream = null;
@@ -56,11 +56,7 @@ function build_file_upload_handler(file_upload_endpoint, req) {
         }
 
         function write_csv_cloud_metadata(metadata_filename) {
-
-            let metadata = "";
-            
-            // !!! Re-write these permissions !!!
-            metadata = `Groups:\n${process.env.LOCAL_GROUP}: RW\nUsers:\n${process.env.USERNAME}: RW\n`;
+            const metadata = get_csv_cloud_metadata(msg.user.username);
 
             fs.writeFileSync(`${dir_path}/${metadata_filename}`, metadata, (err) => {
               if (err) {
