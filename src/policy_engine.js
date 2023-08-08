@@ -19,6 +19,10 @@ const GROUP_TO_MACHINE = {
     "B":  "172.31.0.4"
 }
 
+function get_group_machine_address(group) {
+    return GROUP_TO_MACHINE[group];
+}
+
 function is_user_in_group(user, group) {
     const groups = USER_TO_GROUPS[user]
     return groups.find(
@@ -37,8 +41,6 @@ function get_csv_cloud_metadata(user) {
                     return str += `${g}: R\n`
                 }
             }, "");
-
-            console.log(gp);
             metadata+=gp;
 
             metadata += "Users:\n"
@@ -99,4 +101,4 @@ function authorize_action(user, action, group_owns_device=null) {
 
 }
 
-export default {authorize_action, get_csv_cloud_metadata}
+export default {authorize_action, get_csv_cloud_metadata, get_group_machine_address}

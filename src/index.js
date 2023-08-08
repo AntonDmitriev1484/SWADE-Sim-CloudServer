@@ -7,7 +7,7 @@ import dns from "dns"
 import pg from "pg"
 import FormData from "form-data"
 
-const {build_file_upload_handler, build_live_data_handler} = handlers;
+const {build_file_upload_handler, build_live_data_handler, get_group_machine_address} = handlers;
 
 
 // Using version 6 (beta) ZMQ, Node version 14
@@ -132,6 +132,54 @@ init_connections()
 
         // Need to build up a res object and then send it here
         // Sending it within the lambda keeps it from being written down here
+    })
+
+    app.post('/read-query', (req, res) => {
+        let query_promises = req.body.query_components.map(
+            component => {
+                if (component.loc === null) { // Fetch cloud
+                    return fetch(`http://fs:${EXPRESS_PORT}/filesys-read`, {
+                        method: 'POST',
+                        headers: {
+                            "accept": "application/json",
+                            "content-type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            "user": req.body.user,
+                            "bucket": component.bucket,
+                            "files":component.files,
+                            "condition": req.body.condition
+                        })
+                    })
+                }
+                else { // Fetch specified location by its IP
+                    const LOC_IP = get_group_machine_address(req.body.loc);
+                    return fetch(`http://${LOC_IP}/local-read`, {
+                        method: 'POST',
+                        headers: {
+                            "accept": "application/json",
+                            "content-type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            "user": req.body.user,
+                            "files":component.files,
+                            "condition": req.body.condition
+                        })
+                    })
+                }
+            }
+        )
+
+    Promise.all(query_promises)
+    .then( query_results => {
+      // console.log(query_results);
+      res.send({query_results: query_results});
+      console.log('Sent results from /read-query on broker');
+    })
+    .catch( err => {
+      console.log("Error performing query on requested files", err);
+    })
+
     })
 
 })
