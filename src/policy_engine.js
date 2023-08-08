@@ -1,9 +1,10 @@
 
-const GROUPS = ["A","B"];
+const GROUPS = ["A","B","C"];
 
 const USER_TO_GROUPS = {
     "u1":["A"],
-    "u2":["A", "B"]
+    "u2":["A", "B"],
+    "u3":["C"]
 }
 
 function standard_permissions(name) {
@@ -11,12 +12,14 @@ function standard_permissions(name) {
 }
 const GROUP_TO_PERMISSIONS = {
     "A": standard_permissions("A"),
-    "B": standard_permissions("B")
+    "B": standard_permissions("B"),
+    "C": standard_permissions("C")
 }
 
 const GROUP_TO_MACHINE = {
     "A":  "172.31.0.2",
-    "B":  "172.31.0.4"
+    "B":  "172.31.0.4",
+    "C":  "172.31.0.10",
 }
 
 function get_group_machine_address(group) {
@@ -60,7 +63,11 @@ function authorize_action(user, action, group_owns_device=null) {
 
         if (group_owns_device !== null) { // R/W to local device, owned by a group
 
-            if (is_user_in_group(user, group_owns_device)) { // User is in this group
+            let a = is_user_in_group(user, group_owns_device)
+            console.log(' Is user in the group that owns this device? '+a)
+
+            if (a) { // User is in this group
+                console.log('in');
                 // Does membership in this group giver permission to R/W to its local device? (always yes)
                 const approved = (GROUP_TO_PERMISSIONS[group_owns_device].find((permissions) => (permissions === action)) !== undefined);
                 if (!approved) {
@@ -71,10 +78,14 @@ function authorize_action(user, action, group_owns_device=null) {
                 }
                 return approved;
             }
-            else { // User is not in this group
-                console.log(`User: ${user} is not authorized to access information on a group ${group} device!`);
-                return false;
+            else {
+                // User is not in this group
+                // Why is it not running this print statement? JavaScript what the fuck lol?
+                console.log('User: '+user+' is not authorized to access information on a group '+group+' device!');
+                // It just really doesn;t like this print statement for some reason...
+                return a;
             }
+
 
         }
         else { // R/W to cloud
