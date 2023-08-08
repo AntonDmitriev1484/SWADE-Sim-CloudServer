@@ -6,8 +6,12 @@ import zmq from "zeromq"
 import dns from "dns"
 import pg from "pg"
 import FormData from "form-data"
+import policy_engine from "./policy_engine.js"
+import fetch from "node-fetch"
 
-const {build_file_upload_handler, build_live_data_handler, get_group_machine_address} = handlers;
+const {build_file_upload_handler, build_live_data_handler} = handlers;
+const {authorize_action, get_csv_cloud_metadata, get_group_machine_address} = policy_engine;
+
 
 
 // Using version 6 (beta) ZMQ, Node version 14
@@ -137,8 +141,10 @@ init_connections()
     app.post('/read-query', (req, res) => {
         let query_promises = req.body.query_components.map(
             component => {
-                if (component.loc === null) { // Fetch cloud
-                    return fetch(`http://fs:${EXPRESS_PORT}/filesys-read`, {
+                console.log(component);
+                if (component.owner === null) { // Fetch cloud
+                    return new Promise( (resolve, reject) => {
+                        fetch(`http://fs:${EXPRESS_PORT}/filesys-read`, {
                         method: 'POST',
                         headers: {
                             "accept": "application/json",
@@ -149,12 +155,22 @@ init_connections()
                             "bucket": component.bucket,
                             "files":component.files,
                             "condition": req.body.condition
+                            })
                         })
-                    })
+                        .then(res=> res.json() )
+                        .then((response)=>{
+                            resolve(response);
+                        })
+                        .catch((error)=>{ console.error("Error",error); resolve(err);});
+                    
+                    }
+                    )
+                    
                 }
                 else { // Fetch specified location by its IP
-                    const LOC_IP = get_group_machine_address(req.body.loc);
-                    return fetch(`http://${LOC_IP}/local-read`, {
+                    const LOC_IP = get_group_machine_address(component.owner);
+                    return new Promise( (resolve, reject) => {
+                        fetch(`http://${LOC_IP}:${EXPRESS_PORT}/local-read`, {
                         method: 'POST',
                         headers: {
                             "accept": "application/json",
@@ -164,15 +180,22 @@ init_connections()
                             "user": req.body.user,
                             "files":component.files,
                             "condition": req.body.condition
+                            })
                         })
+                        .then(res=> res.json() )
+                        .then((response)=>{
+                            resolve(response);
+                        })
+                        .catch((error)=>{ console.error("Error",error); resolve(err);});
                     })
+
                 }
             }
         )
 
     Promise.all(query_promises)
     .then( query_results => {
-      // console.log(query_results);
+      // console.log(JSON.stringify(query_results));
       res.send({query_results: query_results});
       console.log('Sent results from /read-query on broker');
     })
