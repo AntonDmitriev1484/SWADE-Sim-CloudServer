@@ -139,61 +139,73 @@ init_connections()
     })
 
     app.post('/read-query', (req, res) => {
-        let query_promises = req.body.query_components.map(
+        console.log(req.body);
+        const query_promises = req.body.query_components.map(
             component => {
                 console.log(component);
                 if (component.owner === null) { // Fetch cloud
-                    return new Promise( (resolve, reject) => {
-                        fetch(`http://fs:${EXPRESS_PORT}/filesys-read`, {
-                        method: 'POST',
-                        headers: {
-                            "accept": "application/json",
-                            "content-type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            "user": req.body.user,
-                            "bucket": component.bucket,
-                            "files":component.files,
-                            "condition": req.body.condition
-                            })
-                        })
-                        .then(res=> res.json() )
-                        .then((response)=>{
-                            resolve(response);
-                        })
-                        .catch((error)=>{ console.error("Error",error); resolve(err);});
-                    
-                    }
-                    )
-                    
+                        return new Promise( (resolve, reject) => {
+                            if (authorize_action(req.body.user, "RC")) {
+                                fetch(`http://fs:${EXPRESS_PORT}/filesys-read`, {
+                                method: 'POST',
+                                headers: {
+                                    "accept": "application/json",
+                                    "content-type": "application/json"
+                                },
+                                body: JSON.stringify({
+                                    "user": req.body.user,
+                                    "bucket": component.bucket,
+                                    "files":component.files,
+                                    "condition": req.body.condition
+                                    })
+                                })
+                                .then(res=> res.json() )
+                                .then((response)=>{
+                                    resolve(response);
+                                })
+                                .catch((error)=>{ console.error("Error",error); resolve(err);});
+                            }
+                            else {
+                                reject("Rejected query. User is not authenticated to perform this action.");
+                            }
+                        }
+                        ); 
                 }
                 else { // Fetch specified location by its IP
                     const LOC_IP = get_group_machine_address(component.owner);
-                    return new Promise( (resolve, reject) => {
-                        fetch(`http://${LOC_IP}:${EXPRESS_PORT}/local-read`, {
-                        method: 'POST',
-                        headers: {
-                            "accept": "application/json",
-                            "content-type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            "user": req.body.user,
-                            "files":component.files,
-                            "condition": req.body.condition
-                            })
+                        return new Promise( (resolve, reject) => {
+                            
+                            // For this auth, pass in User, Local Read, and then the group that owns the local machine
+                            if (authorize_action(req.body.user, "R", component.owner)) {
+                                fetch(`http://${LOC_IP}:${EXPRESS_PORT}/local-read`, {
+                                method: 'POST',
+                                headers: {
+                                    "accept": "application/json",
+                                    "content-type": "application/json"
+                                },
+                                body: JSON.stringify({
+                                    "user": req.body.user,
+                                    "files":component.files,
+                                    "condition": req.body.condition
+                                    })
+                                })
+                                .then(res=> res.json() )
+                                .then((response)=>{
+                                    resolve(response);
+                                })
+                                .catch((error)=>{ console.error("Error",error); resolve(err);});
+                            }
+                            else {
+                                reject("Rejected Promise. User is not authenticated to perform this action.");
+                            }
                         })
-                        .then(res=> res.json() )
-                        .then((response)=>{
-                            resolve(response);
-                        })
-                        .catch((error)=>{ console.error("Error",error); resolve(err);});
-                    })
+                    
 
                 }
             }
         )
 
-    Promise.all(query_promises)
+    Promise.allSettled(query_promises)
     .then( query_results => {
       // console.log(JSON.stringify(query_results));
       res.send({query_results: query_results});

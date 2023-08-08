@@ -25,9 +25,9 @@ function get_group_machine_address(group) {
 
 function is_user_in_group(user, group) {
     const groups = USER_TO_GROUPS[user]
-    return groups.find(
+    return (groups.find(
         (g)=>{ return group === g}
-    )
+    ) !== undefined)
 }
 
 function get_csv_cloud_metadata(user) {
@@ -57,12 +57,17 @@ function authorize_action(user, action, group_owns_device=null) {
 
     if (groups !== undefined) {
         console.log(`${user} is in groups ${groups}`)
+
         if (group_owns_device !== null) { // R/W to local device, owned by a group
-            if (groups.find(group_owns_device)) { // User is in this group
+
+            if (is_user_in_group(user, group_owns_device)) { // User is in this group
                 // Does membership in this group giver permission to R/W to its local device? (always yes)
-                const approved = (GROUP_TO_PERMISSIONS[group_owns_device].find(action) !== undefined);
+                const approved = (GROUP_TO_PERMISSIONS[group_owns_device].find((permissions) => (permissions === action)) !== undefined);
                 if (!approved) {
                     console.log(`User: ${user} is in group ${group_owns_device}, that does not have ${action} permissions to this local device!`);
+                }
+                else {
+                    console.log(`User: ${user} is in group ${group_owns_device}, and has been approved to ${action} group ${group_owns_device} local device!`)
                 }
                 return approved;
             }
@@ -70,6 +75,7 @@ function authorize_action(user, action, group_owns_device=null) {
                 console.log(`User: ${user} is not authorized to access information on a group ${group} device!`);
                 return false;
             }
+
         }
         else { // R/W to cloud
             // If at least one of these groups offers the WC/RC permission to cloud this will be approved
@@ -88,7 +94,7 @@ function authorize_action(user, action, group_owns_device=null) {
                 console.log(`User: ${user} is not in any groups that give ${action} permissions to the cloud!`)
             }
             else {
-                console.log(`User: ${user} has been approved to write to the cloud!`)
+                console.log(`User: ${user} has been approved to ${action} to the cloud!`)
             }
             return approved;
         }
