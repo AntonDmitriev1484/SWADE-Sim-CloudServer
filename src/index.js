@@ -138,13 +138,33 @@ init_connections()
         // Sending it within the lambda keeps it from being written down here
     })
 
+    // {
+    //   select_fields: [''], // We will use this to index into the json
+    //   query_components: [
+    //     { 
+    //     owner: "A",
+    //     from_files: ['']
+    //     },
+    //     { 
+    //     owner: null,
+    //     bucket: "A"
+    //     from_files: ['test/..', 'test/..'] // Fetching multiple files in 'A' bucket in cloud
+    //     }
+    //   ],
+    //   where: [
+    //     { field: '', range: [ , ]} // Convert these to lambda predicates
+    //   ]
+    // }
+
     app.post('/read-query', (req, res) => {
         console.log(req.body);
         const query_promises = req.body.query_components.map(
             component => {
                 console.log(component);
+
                 if (component.owner === null) { // Fetch cloud
                         return new Promise( (resolve, reject) => {
+
                             if (authorize_action(req.body.user, "RC")) {
                                 fetch(`http://fs:${EXPRESS_PORT}/filesys-read`, {
                                 method: 'POST',
@@ -154,9 +174,10 @@ init_connections()
                                 },
                                 body: JSON.stringify({
                                     "user": req.body.user,
-                                    "bucket": component.bucket,
-                                    "files":component.files,
-                                    "condition": req.body.condition
+                                    "select_fields": req.body.select_fields,
+                                    "in_bucket": component.bucket,
+                                    "from_files":component.from_files,
+                                    "where": req.body.where
                                     })
                                 })
                                 .then(res=> res.json() )
@@ -185,8 +206,9 @@ init_connections()
                                 },
                                 body: JSON.stringify({
                                     "user": req.body.user,
-                                    "files":component.files,
-                                    "condition": req.body.condition
+                                    "select_fields": req.body.select_fields,
+                                    "from_files":component.from_files,
+                                    "where": req.body.where
                                     })
                                 })
                                 .then(res=> res.json() )

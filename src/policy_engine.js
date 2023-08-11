@@ -83,10 +83,9 @@ function authorize_action(user, action, group_owns_device=null) {
                 // Why is it not running this print statement? JavaScript what the fuck lol?
                 console.log('User: '+user+' is not authorized to access information on a group '+group+' device!');
                 // It just really doesn;t like this print statement for some reason...
+                // Query results are the same each time, but it kind of runs however it wants lol.
                 return a;
             }
-
-
         }
         else { // R/W to cloud
             // If at least one of these groups offers the WC/RC permission to cloud this will be approved
