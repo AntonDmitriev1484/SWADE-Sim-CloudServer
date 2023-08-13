@@ -1,10 +1,12 @@
 
-const GROUPS = ["A","B","C"];
+const GROUPS = ["A","B","C", "D", "E"];
 
 const USER_TO_GROUPS = {
-    "u1":["A"],
+    "u1":["A", "B", "C", "D", "E"],
     "u2":["A", "B"],
-    "u3":["C"]
+    "u3":["C"],
+    "u4":["D"],
+    "u5":["E"]
 }
 
 function standard_permissions(name) {
@@ -13,13 +15,17 @@ function standard_permissions(name) {
 const GROUP_TO_PERMISSIONS = {
     "A": standard_permissions("A"),
     "B": standard_permissions("B"),
-    "C": standard_permissions("C")
+    "C": standard_permissions("C"),
+    "D": standard_permissions("D"),
+    "E": standard_permissions("E"),
 }
 
 const GROUP_TO_MACHINE = {
     "A":  "172.31.0.2",
-    "B":  "172.31.0.4",
-    "C":  "172.31.0.10",
+    "B":  "172.31.0.3",
+    "C":  "172.31.0.4",
+    "D":  "172.31.0.5",
+    "E":  "172.31.0.6"
 }
 
 function get_group_machine_address(group) {

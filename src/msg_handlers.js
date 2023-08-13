@@ -33,7 +33,8 @@ function build_file_upload_handler(file_upload_endpoint, req) {
             console.log('Opening writestream for '+full_path);
             writestream = fs.createWriteStream(full_path);
             // Writing headers
-            writestream.write(Object.values(msg.chunk).join(',') + "\n");
+            console.log('HEADERS AT CLOUD: '+msg.chunk);
+            writestream.write(Object.values(msg.chunk).join(',') + "\n"); // This is converting headers to [object Object] on cloud write?
         }
         else {
             COUNT ++;

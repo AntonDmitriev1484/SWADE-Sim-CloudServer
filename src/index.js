@@ -88,8 +88,11 @@ async function sub_to_messages(pub_address, topic, action) {
 }
 
 
-init_connections()
-.then( value => {
+// init_connections()
+// .then( 
+    
+start('');
+function start(value) {
     console.log('Connections initialized!');
 
     app.post('/register', (req, res)=> {
@@ -158,6 +161,11 @@ init_connections()
 
     app.post('/read-query', (req, res) => {
         console.log(req.body);
+        // Wy is body.query_component not an array?
+        const query_components = req.body.query_components;
+        console.log(query_components); // Use Array.isArray to check
+        // Ok, I changed the way I'm doing the where clause, hopefully this should make json.parse()
+        // not shit itself when the where clause gets to the filesystem
         const query_promises = req.body.query_components.map(
             component => {
                 console.log(component);
@@ -183,6 +191,8 @@ init_connections()
                                 .then(res=> res.json() )
                                 .then((response)=>{
                                     resolve(response);
+
+                                    // Can't read fs response?
                                 })
                                 .catch((error)=>{ console.error("Error",error); resolve(err);});
                             }
@@ -239,10 +249,10 @@ init_connections()
 
     })
 
-})
-.catch( err => {
-    console.log(`Problem initializing cloud server connections: ${err}`);
-})
+}
+// .catch( err => {
+//     console.log(`Problem initializing cloud server connections: ${err}`);
+// })
 
 
 
